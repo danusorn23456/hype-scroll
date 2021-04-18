@@ -168,7 +168,11 @@ export default function ScrollArea({ debug, width, height, background, children,
         window.addEventListener('mousemove', handleMouseMove, true);
         window.addEventListener('mouseup', handleMouseUp);
         window.addEventListener('resize',handleScroll);
-
+        return ()=>{
+            window.removeEventListener('mousemove', handleMouseMove, true);
+            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('resize',handleScroll);
+        }
     }, [])
 
     return (
