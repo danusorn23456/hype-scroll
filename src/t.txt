@@ -1,0 +1,12 @@
+
+bh : 564
+th: 664
+current : 0;
+area scroll height = 970;
+area offset height = 680;
+area scroll remain = area scroll height - area offset height = 290;
+track height       = 664;
+button height      = 100;
+max translate y    = track height - button height = 564;
+
+290 * (564/290)
