@@ -1,19 +1,27 @@
-import { useState } from 'react';
-import ScrollArea from './components/scrollArea';
+import ScrollArea from './component/scrollArea';
 
 function App() {
-
-  const [row,setRow] = useState([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
-
   return (
-    <ScrollArea width="100vw" height="100vh" className="bg-black flex flex-col items-center space-y-md"  thumbStyle={{
-      background: 'rgb(131,58,180)',
-      background: 'linear-gradient(173deg, rgba(131,58,180,1) 0%, rgba(253,29,29,1) 50%, rgba(252,176,69,1) 100%)'
-    }}>
-      {row.map((unit,index)=>(
-        <div className="text-[4rem] text-white font-medium">SCROLL ME NOW !</div>
-      ))}
+    <ScrollArea height="50vh" width="90vw" className="transform translate-y-8 shadow p-10" style={{border:'10px solid black'}}>
+      <ScrollArea height="100vh" width="70vw" className="shadow" style={{border:'10px solid black'}}>
+        <ScrollArea height="90vh" width="50vw" className="flex relative transform translate-x-12 flex-col items-center shadow" style={{border:'40px solid black'}}>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+        </ScrollArea>
+        <ScrollArea height="80vh" width="50vw" className="flex transform translate-x-12 flex-col items-center shadow">
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+          <h1 className="text-[12rem]">A</h1>
+        </ScrollArea>
+      </ScrollArea>
     </ScrollArea>
+
   );
 }
 
