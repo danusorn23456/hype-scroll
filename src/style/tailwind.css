@@ -7,19 +7,3 @@
     padding:0;
     box-sizing:border-box;
 }
-
-body{
-  width:100vw;
-  min-height:100vh;
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.remove-scroll-bar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.remove-scroll-bar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
