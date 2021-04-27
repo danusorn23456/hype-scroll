@@ -1,212 +1,207 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, {  useCallback, useEffect, useRef, useState } from 'react'
 
-const ScrollAreaContext = createContext();
 
-function useScrollAreaContext() {
-    let context = useContext(ScrollAreaContext);
-    if (!context) {
-        return console.error("can't use ScrollAreaContext outside ScrollArea Component")
-    }
-    return context;
-}
-
-export default function ScrollArea({ debug, width = '100%', height = "100%", trackWidth = 12, thumbColor = "#242526", trackColor = "#E4E6EB", style, renderRightScrollBar = true, children, className, ...arg }) {
+export default function ScrollArea({ as, width = '100%', height = "100%", trackSize = 16, thumbColor = "#242526", trackColor = "#E4E6EB", style, scrollX, scrollY = true, children, className, ...arg }) {
 
     //set up some presu-do css without touching your own .css file
-    let styleSheet = document.getElementById("danusorn-custom-scollbar");
-
+    let prefix = "danusorn-custom-scollbar"
+    let styleSheet = document.getElementById(prefix);
     if (!styleSheet) {
         styleSheet = document.createElement('style');
-        styleSheet.id = "danusorn-custom-scollbar";
+        styleSheet.id = prefix;
         styleSheet.innerHTML = `
-        .danusorn-custom-scollbar_remove-scroll-bar::-webkit-scrollbar {
+        .${prefix}_remove-scroll-bar::-webkit-scrollbar {
             display: none;
         }
-        .danusorn-custom-scollbar_remove-scroll-bar{
+        .${prefix}_remove-scroll-bar{
         -ms-overflow-style: none; 
         scrollbar-width: none;
         }
-        .danusorn-custom-scrollbar_scroll-track:hover{
-            opacity:1 !important;
+        .${prefix}_scroll-track:hover{
+            opacity:0.6 !important;
         }
       `;
         document.head.appendChild(styleSheet);
     }
 
+    let TAG = as || 'div'
+
     const variant = {
         thumbColor: thumbColor,
         trackColor: trackColor,
-        trackWidth: trackWidth,
+        trackWidth: trackSize,
+        trackHeight: trackSize,
+        buttonMargin: Math.round(trackSize / 4),
     }
 
     const [isScrolling, setIsScrolling] = useState(false);
     const [isMouseDown, setIsMouseDown] = useState(false);
 
-    const [bounding, setBounding] = useState({})
-
     const scrollArea = useRef({});
+    const scrollHost = useRef({});
+    const scrollBar = useRef({});
 
-    //i just want to scope value that use for calculate some thing
-    const updateBounding = () => {
-        setBounding(prev => {
-            let nextState = { ...prev };
-            nextState.offsetHeight = scrollArea.current.offsetHeight;
-            nextState.offsetWidth = scrollArea.current.offsetWidth;
-            nextState.offsetLeft = scrollArea.current.offsetLeft;
-            nextState.offsetTop = scrollArea.current.offsetTop;
-            nextState.clientTop = scrollArea.current.clientTop;
-            nextState.clientLeft = scrollArea.current.clientLeft;
-            nextState.clientWidth = scrollArea.current.clientWidth;
-            nextState.clientHeight = scrollArea.current.clientHeight;
-            nextState.scrollHeight = scrollArea.current.scrollHeight;
-            nextState.scrollTop = scrollArea.current.scrollTop;
-            nextState.top = scrollArea.current.getBoundingClientRect().top;
-            nextState.left = scrollArea.current.getBoundingClientRect().left;
-            nextState.scrollHeightRemain = scrollArea.current.scrollHeight - scrollArea.current.clientHeight;
-            nextState.trackHeight = scrollArea.current.clientHeight;
-            nextState.trackDragState = scrollArea.current.getBoundingClientRect().height / 2;
-            nextState.trackScrollHeightRemain = (scrollArea.current.getBoundingClientRect().height - Math.max(scrollArea.current.getBoundingClientRect().height) * (scrollArea.current.getBoundingClientRect().height / scrollArea.current.scrollHeight), 100);
-            nextState.ratioHeight = scrollArea.current.clientHeight - Math.max(scrollArea.current.getBoundingClientRect().height * (scrollArea.current.getBoundingClientRect().height / scrollArea.current.scrollHeight), 100);
-            nextState.realY = (e) => (e ? e.clientY - scrollArea.current.getBoundingClientRect().top : null);
-            nextState.buttonHeight = Math.max(scrollArea.current.getBoundingClientRect().height * (scrollArea.current.getBoundingClientRect().height / scrollArea.current.scrollHeight), 100);
-            return nextState;
-        })
+    const raf = useRef({});
+    const stopScrollTimer = useRef(null);
+
+    //default inline style without any calculate logic
+    const inlineStyle = {
+        area: {
+            height: height,
+            width: width,
+            overflowX: scrollX ? 'auto' : 'hidden',
+            overflowY: scrollY ? 'auto' : 'hidden',
+            ...style
+        },
+        host: {
+            transitionDuration: 0,
+            position: 'fixed',
+            top:0,
+            left:0,
+            pointerEvents: 'none',
+            willChange: 'transform',
+            overflow: 'hidden',
+            zIndex: 999999,
+        },
+        track: {
+            transformOrigin:'center',
+            opacity: isScrolling ? 0.6 : 0,
+            background: trackColor,
+            pointerEvents: 'auto',
+            transition: 'opacity 300ms',
+        },
+        button: {
+            transition: 'transform 50ms',
+            willChange: 'transform',
+            background: thumbColor,
+            outline: 'none',
+            borderRadius: trackSize,
+        }
     }
+    const animate = () => {
 
-    let stopScrollTimer;
+        let area = scrollArea.current;
+        area.scrollTopLimit = area.scrollHeight - area.clientHeight;
+        area.scrollLeftLimit = area.scrollWidth - area.clientWidth;
+        area.isOverflowY = scrollY && area.scrollHeight - area.clientHeight > 1;
+        area.isOverflowX =  scrollX && area.scrollWidth - area.clientWidth > 1;
+        area.hasTransform = window.getComputedStyle(scrollArea.current).getPropertyValue('transform') !== "none";
 
-    function handleAreaScroll() {
-        if (stopScrollTimer) {
-            window.clearTimeout(stopScrollTimer);
+        let rightScrollBar = scrollBar.current.right;
+        let bottomScrollBar = scrollBar.current.bottom;
+
+        let track;
+        let button;
+
+        let host = scrollHost.current;
+        area.style.zIndex = window.getComputedStyle(area).getPropertyValue('position') === "fixed" ? 1 : 0;
+        host.style.transform = area.hasTransform ? `translate(${area.scrollLeft}px,${area.scrollTop}px)` : `translate(${area.getBoundingClientRect().left + area.clientLeft}px,${area.getBoundingClientRect().top + area.clientTop}px)`;
+        host.style.width = area.clientWidth + 'px';
+        host.style.height = area.clientHeight + 'px';
+
+        if (rightScrollBar) {
+            track = rightScrollBar;
+            button = rightScrollBar.children[0];
+
+            track.style.width = trackSize + 'px';
+            track.style.height = area.isOverflowX ? area.clientHeight - trackSize+'px' : area.clientHeight+'px';
+            track.style.display = area.isOverflowY ? 'flex' : 'none';
+            track.style.padding = `0 ${Math.floor(variant.buttonMargin)}px`;
+            track.style.marginLeft = 'auto';
+
+            button.style.width = '100%';
+            button.style.height = area.clientHeight < 60 ? area.clientHeight * (area.clientHeight / area.scrollHeight) : Math.max(area.clientHeight * (area.clientHeight / area.scrollHeight), 50)+'px';
+            button.style.transform = `scaleY(0.${Math.round(100 - 3.5)}) translateY(${(area.scrollTop) * ((track.offsetHeight - button.offsetHeight) / area.scrollTopLimit) + variant.buttonMargin / 2}px)`
         }
 
-        setIsScrolling(true)
-        updateBounding();
+        if (bottomScrollBar) {
+            track = bottomScrollBar;
+            button = bottomScrollBar.children[0];
 
-        stopScrollTimer = window.setTimeout(() => setIsScrolling(false), 1000);
+            track.style.height = trackSize + 'px';
+            track.style.width = area.isOverflowY ? area.clientWidth - trackSize+'px' : area.clientWidth+'px';
+            track.style.display = area.isOverflowX ? 'flex' : 'none';
+            track.style.padding = `${Math.floor(variant.buttonMargin)}px 0`;
+            track.style.marginTop = area.isOverflowY ? 0 : area.clientHeight - trackSize+'px';
+
+            button.style.height = '100%';
+            button.style.width = area.clientWidth < 60 ? area.clientWidth * (area.clientWidth / area.scrollWidth) : Math.max(area.clientWidth * (area.clientWidth / area.scrollWidth), 50)+'px';
+            button.style.transform = `scaleX(0.${Math.round(100 - variant.buttonMargin / 2)}) translate(${(area.scrollLeft) * ((track.offsetWidth - button.offsetWidth) / area.scrollLeftLimit) + variant.buttonMargin / 2}px)`;
+        }
+
+        raf.current = window.requestAnimationFrame(animate);
+    }
+
+    const handleAreaScroll = useCallback(() => {
+        if (stopScrollTimer.current) {
+            window.clearTimeout(stopScrollTimer.current);
+        }
+        setIsScrolling(true)
+        stopScrollTimer.current = window.setTimeout(() => setIsScrolling(false), 1000);
+    }, [])
+
+    const handleWindowMouseMove = e => {
+        let area = scrollArea.current;
+        let rightScrollBar = scrollBar.current.right;
+        let bottomScrollBar = scrollBar.current.bottom;
+        
+        let button;
+        let track;
+
+        if (isMouseDown) {
+            if(scrollY){
+                track = rightScrollBar;
+                button = rightScrollBar.children[0];
+                scrollArea.current.scrollTop = ((e.clientY - area.getBoundingClientRect().top) - (button.offsetHeight / 2)) * (area.scrollTopLimit / (track.offsetHeight - button.offsetHeight));
+            }
+            if(scrollX){
+                track = bottomScrollBar;
+                button = bottomScrollBar.children[0];
+                scrollArea.current.scrollLeft = ((e.clientX - area.getBoundingClientRect().left) - (button.offsetWidth / 2)) * (area.scrollLeftLimit / (track.offsetWidth - button.offsetWidth));
+            }
+        }
     }
 
     const handleWindowMouseUp = () => {
         setIsMouseDown(false);
     }
 
-    const handleWindowMouseMove = useCallback((e) => {
-        if (isMouseDown) {
-            scrollArea.current.scrollTop = (bounding.realY(e) - (bounding.buttonHeight / 2)) * (bounding.scrollHeightRemain / (bounding.height - bounding.buttonHeight));
-        }
-    },[isMouseDown])
-
-    const handleWindowResize = () =>{
-        setBounding(prev => {
-            let nextState = { ...prev };
-            nextState.trackHeight = 0;
-            return nextState;
-        })
-    }
-
-    useEffect(()=>{
-        setBounding(prev => {
-            let nextState = { ...prev };
-            nextState.limitScrollTop = scrollArea.current.scrollHeight - scrollArea.current.clientHeight;
-            return nextState;
-        })
-    },[])
 
     useEffect(() => {
-        if (!scrollArea) return;
+        if (!scrollArea.current) return;
 
         let area = scrollArea.current;
+        raf.current = window.requestAnimationFrame(animate);
 
-        updateBounding();
-
-        window.addEventListener('resize', handleWindowResize);
         area.addEventListener('scroll', handleAreaScroll);
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
-
         return () => {
-            window.removeEventListener('resize', handleWindowResize);
             area.removeEventListener('scroll', handleAreaScroll);
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
-            clearTimeout(stopScrollTimer)
+            window.cancelAnimationFrame(raf.current);
         }
 
-    }, [isMouseDown])
-
-
-    return (
-        <ScrollAreaContext.Provider value={{ scrollArea, isScrolling, variant, bounding, isMouseDown, setIsMouseDown }}>
-            <div data-scroll-container ref={scrollArea} style={{ height: height, width: width, position: 'relative', overflow: 'auto', ...style }} className={`danusorn-custom-scollbar_remove-scroll-bar ${className}`} {...arg}>
-                {children}
-                <ScrollHost>
-                    {
-                        renderRightScrollBar && <RightScrollBar />
-                    }
-                </ScrollHost>
-            </div>
-        </ScrollAreaContext.Provider>
-    )
-}
-
-const ScrollHost = ({ children }) => {
-    const { bounding, variant } = useScrollAreaContext();
-
-    let scrollHostStyle = useMemo(() => ({
-        display: 'grid',
-        position: 'absolute',
-        width: bounding.clientWidth,
-        top: bounding.scrollTop,
-        overflow:'visible',
-        left:0,
-        zIndex:9999999,
-        gridTemplateColumns: `1fr ${variant.trackWidth}px`,
-        gridTemplateRows: 'empty rightScroll',
-        pointerEvents: 'none',
-        opacity: 0.5,
-    }), [variant, bounding])
+    })
 
     return (
-        <div data-scroll-host style={scrollHostStyle}>
+        <TAG ref={scrollArea} style={inlineStyle.area} className={`${prefix}_remove-scroll-bar ${className}`} {...arg}>
             {children}
-        </div>
+            <div className={`${prefix}_scroll-host`} ref={scrollHost} style={inlineStyle.host}>
+                {scrollY && (
+                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.right = ref} onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)} style={inlineStyle.track}>
+                        <button style={inlineStyle.button}></button>
+                    </div>)
+                }
+                {scrollX && (
+                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.bottom = ref} onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)} style={inlineStyle.track}>
+                        <button style={inlineStyle.button}></button>
+                    </div>)
+                }
+            </div>
+        </TAG>
     )
 }
 
-const RightScrollBar = () => {
 
-    const { variant, bounding, isScrolling, setIsMouseDown } = useScrollAreaContext();
-
-    const scrollTrack = useRef({});
-    const scrollButton = useRef({});
-
-    let trackStyle = useMemo(() => ({
-        marginTop:0,
-        padding: '0px 2px',
-        pointerEvents: 'auto',
-        background: variant.trackColor,
-        transition: 'opacity 200ms',
-        opacity: isScrolling ? 0.6 : 0,
-        height: bounding.trackHeight,
-        display: bounding.scrollHeight - bounding.clientHeight < 1 ? 'none' : 'block',
-        width: variant.trackWidth,
-        overflow: 'hidden',
-        gridArea: 'rightScroll',
-    }), [isScrolling, variant, bounding])
-
-    const buttonStyle = useMemo(() => ({
-        zIndex:'999999',
-        width: '100%',
-        outline: 'none',
-        background: variant.thumbColor,
-        borderRadius: variant.trackWidth,
-        height: bounding.buttonHeight,
-        transform: `translateY(${bounding.scrollTop * (bounding.ratioHeight / bounding.scrollHeightRemain)}px)`,
-    }), [variant, bounding])
-
-    return (
-        <div data-scroll-track ref={scrollTrack} onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)} style={trackStyle} className="danusorn-custom-scrollbar_scroll-track">
-            <button ref={scrollButton} style={buttonStyle}></button>
-        </div>
-    )
-}

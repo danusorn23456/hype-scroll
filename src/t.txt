@@ -9,4 +9,8 @@ track height       = 664;
 button height      = 100;
 max translate y    = track height - button height = 564;
 
-290 * (564/290)
+ex remove 8 px form 640 by percent
+100% of 640px ---> 640/100 = 64px ---> 1% ---> 64px/8px = 0.125
+0.(100 - ((640/100)/n))
+
+        
