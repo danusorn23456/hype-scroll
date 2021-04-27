@@ -72,6 +72,7 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
         },
         button: {
             transition: 'transform 50ms',
+            pointerEvents: 'none',
             willChange: 'transform',
             background: thumbColor,
             outline: 'none',
@@ -81,6 +82,8 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
     const animate = () => {
 
         let area = scrollArea.current;
+        if(!area)return;
+
         area.scrollTopLimit = area.scrollHeight - area.clientHeight;
         area.scrollLeftLimit = area.scrollWidth - area.clientWidth;
         area.isOverflowY = scrollY && area.scrollHeight - area.clientHeight > 1;
@@ -129,16 +132,16 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
             button.style.transform = `scaleX(0.${Math.round(100 - variant.buttonMargin / 2)}) translate(${(area.scrollLeft) * ((track.offsetWidth - button.offsetWidth) / area.scrollLeftLimit) + variant.buttonMargin / 2}px)`;
         }
 
-        raf.current = window.requestAnimationFrame(animate);
+        raf.current = requestAnimationFrame(animate);
     }
 
-    const handleAreaScroll = useCallback(() => {
+    const handleAreaScroll = () => {
         if (stopScrollTimer.current) {
             window.clearTimeout(stopScrollTimer.current);
         }
         setIsScrolling(true)
         stopScrollTimer.current = window.setTimeout(() => setIsScrolling(false), 1000);
-    }, [])
+    }
 
     const handleWindowMouseMove = e => {
         let area = scrollArea.current;
@@ -166,36 +169,34 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
         setIsMouseDown(false);
     }
 
-
     useEffect(() => {
-        if (!scrollArea.current) return;
-
-        let area = scrollArea.current;
-        raf.current = window.requestAnimationFrame(animate);
-
-        area.addEventListener('scroll', handleAreaScroll);
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
+
         return () => {
-            area.removeEventListener('scroll', handleAreaScroll);
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
-            window.cancelAnimationFrame(raf.current);
         }
-
-    })
+    },[handleWindowMouseMove])
+    
+    useEffect(()=>{
+        raf.current = requestAnimationFrame(animate);
+        return()=>{
+            cancelAnimationFrame(raf.current);
+        }
+    },[])
 
     return (
-        <TAG ref={scrollArea} style={inlineStyle.area} className={`${prefix}_remove-scroll-bar ${className}`} {...arg}>
+        <TAG ref={scrollArea} style={inlineStyle.area} onScroll={handleAreaScroll} className={`${prefix}_remove-scroll-bar ${className}`} {...arg}>
             {children}
             <div className={`${prefix}_scroll-host`} ref={scrollHost} style={inlineStyle.host}>
                 {scrollY && (
-                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.right = ref} onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)} style={inlineStyle.track}>
+                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.right = ref} onMouseDown={() => setIsMouseDown(true)}  style={inlineStyle.track}>
                         <button style={inlineStyle.button}></button>
                     </div>)
                 }
                 {scrollX && (
-                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.bottom = ref} onMouseDown={() => setIsMouseDown(true)} onMouseUp={() => setIsMouseDown(false)} style={inlineStyle.track}>
+                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.bottom = ref} onMouseDown={() => setIsMouseDown(true)} style={inlineStyle.track}>
                         <button style={inlineStyle.button}></button>
                     </div>)
                 }
