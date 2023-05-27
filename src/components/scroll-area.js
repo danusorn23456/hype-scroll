@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 
-function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumbColor = "white", trackColor = "rgba(20,20,20,0.8)", style, scrollX, scrollY = true, autoHideDuration = 1000, children, className, ...arg }) {
+function ScrollArea({ as, width = '100%', activeOpacity = 1, inactiveOpacity = 0.1, height = "100%", trackSize = 14, thumbColor = "white", trackColor = "dimgray", style, scrollX, scrollY = true, autoHideDuration = 1000, children, className, ...arg }) {
 
     //set up some presu-do css without touching your own .css file
     let prefix = "hype-scollbar"
@@ -17,7 +17,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             scrollbar-width: none;
         }
         .${prefix}_scroll-track:hover{
-            opacity:0.6 !important;
+            opacity:${activeOpacity} !important;
         }
       `;
         document.head.appendChild(styleSheet);
@@ -46,6 +46,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
     //default inline style without any calculate logic
     const inlineStyle = {
         area: {
+            boxSizing: "border-box",
             height: height,
             width: width,
             transform: 'translateZ(0)',
@@ -54,6 +55,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             ...style
         },
         host: {
+            boxSizing: "border-box",
             transitionDuration: 0,
             position: 'fixed',
             top: 0,
@@ -64,7 +66,8 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             zIndex: 999999,
         },
         track: {
-            opacity: 0,
+            boxSizing: "border-box",
+            opacity: inactiveOpacity,
             transformOrigin: 'center',
             background: trackColor,
             pointerEvents: 'auto',
@@ -72,6 +75,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             borderRadius: 'circle',
         },
         button: {
+            boxSizing: "border-box",
             cusor: "pointer",
             transition: 'transform 50ms',
             willChange: 'transform',
@@ -81,6 +85,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             borderRadius: trackSize,
         }
     }
+
     const animate = useCallback(() => {
         let area = scrollArea.current;
         if (!area) return;
@@ -133,25 +138,24 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
             button.style.transform = `scaleX(0.${Math.round(100 - variant.buttonMargin / 2)}) translate(${(area.scrollLeft) * ((track.offsetWidth - button.offsetWidth) / area.scrollLeftLimit) + variant.buttonMargin / 2}px)`;
         }
 
-        const scrollBars = Object.values(scrollBar.current)
-
-        if (scrollBars) {
-            scrollBars.forEach(bar => {
-                bar.style.opacity = 1
-            })
-        }
-
         if (stopScrollTimer.current) {
             window.clearTimeout(stopScrollTimer.current);
         }
 
+        const scrollBars = Object.values(scrollBar.current)
+
+        if (scrollBars) {
+            scrollBars.forEach(bar => {
+                bar.style.opacity = activeOpacity
+            })
+        }
+
         stopScrollTimer.current = window.setTimeout(() => {
             scrollBars.forEach(scroll => {
-                scroll.style.opacity = 0
+                scroll.style.opacity = inactiveOpacity
             })
         }, autoHideDuration);
-
-    }, [scrollX, scrollY, trackSize, variant.buttonMargin, autoHideDuration])
+    }, [scrollX, scrollY, trackSize, variant.buttonMargin, activeOpacity, autoHideDuration, inactiveOpacity])
 
     const handleAreaScroll = () => {
         animate()
@@ -200,7 +204,7 @@ function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumb
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
         animate()
-
+        console.log("render")
         return () => {
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
