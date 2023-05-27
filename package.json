@@ -3,7 +3,7 @@
   "description": "A customizable React component that provides an auto-hiding scrollbar for an immersive user experience",
   "name": "react-custome-scrollbar",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "dependencies": {
     "@testing-library/jest-dom": "^5.11.10",
     "@testing-library/react": "^11.2.6",
