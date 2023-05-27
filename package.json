@@ -1,4 +1,6 @@
 {
+  "source": "src/components/index.js",
+  "description": "A customizable React component that provides an auto-hiding scrollbar for an immersive user experience",
   "name": "react-custome-scrollbar",
   "version": "0.1.0",
   "private": true,
