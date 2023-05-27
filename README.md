@@ -1,5 +1,6 @@
 
-# Hype Scroll
+![Logo](https://github.com/danusorn23456/react-autohide-scrollbar/blob/main/public/hype-scroll-logo.png?raw=true)
+
 
 The AutoHide Scrollbar project is a custom React component designed to enhance the user experience of scrolling within a web application. Unlike the default scrollbars, this component offers auto-hiding functionality, which means the scrollbar remains hidden until the user hovers over it, providing a cleaner and more immersive interface.
 
