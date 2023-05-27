@@ -1,10 +1,9 @@
-import React, {  useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 
-
-export default function ScrollArea({ as, width = '100%', height = "100%", trackSize = 16, thumbColor = "#242526", trackColor = "#E4E6EB", style, scrollX, scrollY = true, children, className, ...arg }) {
+function ScrollArea({ as, width = '100%', height = "100%", trackSize = 14, thumbColor = "white", trackColor = "rgba(20,20,20,0.8)", style, scrollX, scrollY = true, autoHideDuration = 1000, children, className, ...arg }) {
 
     //set up some presu-do css without touching your own .css file
-    let prefix = "danusorn-custom-scollbar"
+    let prefix = "hype-scollbar"
     let styleSheet = document.getElementById(prefix);
     if (!styleSheet) {
         styleSheet = document.createElement('style');
@@ -14,8 +13,8 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
             display: none;
         }
         .${prefix}_remove-scroll-bar{
-        -ms-overflow-style: none; 
-        scrollbar-width: none;
+            -ms-overflow-style: none; 
+            scrollbar-width: none;
         }
         .${prefix}_scroll-track:hover{
             opacity:0.6 !important;
@@ -34,14 +33,14 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
         buttonMargin: Math.round(trackSize / 4),
     }
 
-    const [isScrolling, setIsScrolling] = useState(false);
-    const [isMouseDown, setIsMouseDown] = useState(false);
-
+    const mouseRef = useRef({
+        mouseDown: false,
+        scrollBarPosition: ""
+    })
     const scrollArea = useRef({});
     const scrollHost = useRef({});
     const scrollBar = useRef({});
 
-    const raf = useRef(null);
     const stopScrollTimer = useRef(null);
 
     //default inline style without any calculate logic
@@ -49,6 +48,7 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
         area: {
             height: height,
             width: width,
+            transform: 'translateZ(0)',
             overflowX: scrollX ? 'auto' : 'hidden',
             overflowY: scrollY ? 'auto' : 'hidden',
             ...style
@@ -56,38 +56,39 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
         host: {
             transitionDuration: 0,
             position: 'fixed',
-            top:0,
-            left:0,
+            top: 0,
+            left: 0,
             pointerEvents: 'none',
             willChange: 'transform',
             overflow: 'hidden',
             zIndex: 999999,
         },
         track: {
-            transformOrigin:'center',
-            opacity: isScrolling ? 0.6 : 0,
+            opacity: 0,
+            transformOrigin: 'center',
             background: trackColor,
             pointerEvents: 'auto',
             transition: 'opacity 300ms',
+            borderRadius: 'circle',
         },
         button: {
+            cusor: "pointer",
             transition: 'transform 50ms',
             willChange: 'transform',
             background: thumbColor,
             outline: 'none',
+            borderStyle: 'none',
             borderRadius: trackSize,
         }
     }
     const animate = useCallback(() => {
-
         let area = scrollArea.current;
-        if(!area)return;
+        if (!area) return;
 
         area.scrollTopLimit = area.scrollHeight - area.clientHeight;
         area.scrollLeftLimit = area.scrollWidth - area.clientWidth;
         area.isOverflowY = scrollY && area.scrollHeight - area.clientHeight > 1;
-        area.isOverflowX =  scrollX && area.scrollWidth - area.clientWidth > 1;
-        area.hasTransform = window.getComputedStyle(scrollArea.current).getPropertyValue('transform') !== "none";
+        area.isOverflowX = scrollX && area.scrollWidth - area.clientWidth > 1;
 
         let rightScrollBar = scrollBar.current.right;
         let bottomScrollBar = scrollBar.current.bottom;
@@ -97,7 +98,8 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
 
         let host = scrollHost.current;
         area.style.zIndex = window.getComputedStyle(area).getPropertyValue('position') === "fixed" ? 1 : 0;
-        host.style.transform = area.hasTransform ? `translate(${area.scrollLeft}px,${area.scrollTop}px)` : `translate(${area.getBoundingClientRect().left + area.clientLeft}px,${area.getBoundingClientRect().top + area.clientTop}px)`;
+
+        host.style.transform = `translate(${area.scrollLeft}px,${area.scrollTop}px)`
         host.style.width = area.clientWidth + 'px';
         host.style.height = area.clientHeight + 'px';
 
@@ -106,13 +108,13 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
             button = rightScrollBar.children[0];
 
             track.style.width = trackSize + 'px';
-            track.style.height = area.isOverflowX ? area.clientHeight - trackSize+'px' : area.clientHeight+'px';
+            track.style.height = area.isOverflowX ? area.clientHeight - trackSize + 'px' : area.clientHeight + 'px';
             track.style.display = area.isOverflowY ? 'flex' : 'none';
             track.style.padding = `0 ${Math.floor(variant.buttonMargin)}px`;
             track.style.marginLeft = 'auto';
 
             button.style.width = '100%';
-            button.style.height = area.clientHeight < 60 ? area.clientHeight * (area.clientHeight / area.scrollHeight) : Math.max(area.clientHeight * (area.clientHeight / area.scrollHeight), 50)+'px';
+            button.style.height = area.clientHeight < 60 ? area.clientHeight * (area.clientHeight / area.scrollHeight) : Math.max(area.clientHeight * (area.clientHeight / area.scrollHeight), 50) + 'px';
             button.style.transform = `scaleY(0.${Math.round(100 - 3.5)}) translateY(${(area.scrollTop) * ((track.offsetHeight - button.offsetHeight) / area.scrollTopLimit) + variant.buttonMargin / 2}px)`
         }
 
@@ -121,82 +123,102 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
             button = bottomScrollBar.children[0];
 
             track.style.height = trackSize + 'px';
-            track.style.width = area.isOverflowY ? area.clientWidth - trackSize+'px' : area.clientWidth+'px';
+            track.style.width = area.isOverflowY ? area.clientWidth - trackSize + 'px' : area.clientWidth + 'px';
             track.style.display = area.isOverflowX ? 'flex' : 'none';
             track.style.padding = `${Math.floor(variant.buttonMargin)}px 0`;
-            track.style.marginTop = area.isOverflowY ? 0 : area.clientHeight - trackSize+'px';
+            track.style.marginTop = area.isOverflowY ? 0 : area.clientHeight - trackSize + 'px';
 
             button.style.height = '100%';
-            button.style.width = area.clientWidth < 60 ? area.clientWidth * (area.clientWidth / area.scrollWidth) : Math.max(area.clientWidth * (area.clientWidth / area.scrollWidth), 50)+'px';
+            button.style.width = area.clientWidth < 60 ? area.clientWidth * (area.clientWidth / area.scrollWidth) : Math.max(area.clientWidth * (area.clientWidth / area.scrollWidth), 50) + 'px';
             button.style.transform = `scaleX(0.${Math.round(100 - variant.buttonMargin / 2)}) translate(${(area.scrollLeft) * ((track.offsetWidth - button.offsetWidth) / area.scrollLeftLimit) + variant.buttonMargin / 2}px)`;
         }
 
-        raf.current = requestAnimationFrame(animate);
-    },[scrollX, scrollY, trackSize, variant.buttonMargin])
+        const scrollBars = Object.values(scrollBar.current)
 
-    const handleAreaScroll = () => {
+        if (scrollBars) {
+            scrollBars.forEach(bar => {
+                bar.style.opacity = 1
+            })
+        }
+
         if (stopScrollTimer.current) {
             window.clearTimeout(stopScrollTimer.current);
         }
-        setIsScrolling(true)
-        stopScrollTimer.current = window.setTimeout(() => setIsScrolling(false), 1000);
+
+        stopScrollTimer.current = window.setTimeout(() => {
+            scrollBars.forEach(scroll => {
+                scroll.style.opacity = 0
+            })
+        }, autoHideDuration);
+
+    }, [scrollX, scrollY, trackSize, variant.buttonMargin, autoHideDuration])
+
+    const handleAreaScroll = () => {
+        animate()
     }
 
     const handleWindowMouseMove = useCallback(e => {
-        e.preventDefault();
+        let scrollBarPosition = mouseRef.current.scrollBarPosition
         let area = scrollArea.current;
         let rightScrollBar = scrollBar.current.right;
         let bottomScrollBar = scrollBar.current.bottom;
-        
+
         let button;
         let track;
+        const isMouseDown = mouseRef.current.mouseDown
 
         if (isMouseDown) {
-            if(scrollY){
+            if (scrollY && scrollBarPosition === "right") {
                 track = rightScrollBar;
                 button = rightScrollBar.children[0];
                 scrollArea.current.scrollTop = ((e.clientY - area.getBoundingClientRect().top) - (button.offsetHeight / 2)) * (area.scrollTopLimit / (track.offsetHeight - button.offsetHeight));
             }
-            if(scrollX){
+            if (scrollX && scrollBarPosition === "bottom") {
                 track = bottomScrollBar;
                 button = bottomScrollBar.children[0];
                 scrollArea.current.scrollLeft = ((e.clientX - area.getBoundingClientRect().left) - (button.offsetWidth / 2)) * (area.scrollLeftLimit / (track.offsetWidth - button.offsetWidth));
             }
         }
-    },[isMouseDown,scrollX,scrollY]);
+    }, [scrollX, scrollY]);
 
     const handleWindowMouseUp = () => {
-        setIsMouseDown(false);
+        mouseRef.current = {
+            ...mouseRef.current,
+            mouseDown: false
+        }
     }
 
-    const handleTrackMouseDown = () =>{
-        setIsMouseDown(true);
+    const handleTrackMouseDown = (scrollBarPosition) => {
+        mouseRef.current = {
+            ...mouseRef.current,
+            scrollBarPosition,
+            mouseDown: true
+        }
     }
 
     useEffect(() => {
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
-        raf.current = requestAnimationFrame(animate);
+        animate()
 
         return () => {
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
-            cancelAnimationFrame(raf.current);
             window.clearTimeout(stopScrollTimer.current);
         }
-    },[handleWindowMouseMove,animate])
+    }, [handleWindowMouseMove, animate])
 
     return (
         <TAG ref={scrollArea} style={inlineStyle.area} onScroll={handleAreaScroll} className={`${prefix}_remove-scroll-bar ${className}`} {...arg}>
             {children}
             <div className={`${prefix}_scroll-host`} ref={scrollHost} style={inlineStyle.host}>
                 {scrollY && (
-                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.right = ref} onMouseDown={handleTrackMouseDown}  style={inlineStyle.track}>
+                    <div data-scroll-bar={"right"} className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.right = ref} onMouseDown={e => handleTrackMouseDown("right")} style={inlineStyle.track}>
                         <button style={inlineStyle.button}></button>
                     </div>)
                 }
                 {scrollX && (
-                    <div className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.bottom = ref} onMouseDown={handleTrackMouseDown} style={inlineStyle.track}>
+                    <div data-scroll-bar={"bottom"} className={`${prefix}_scroll-track`} ref={ref => scrollBar.current.bottom = ref} onMouseDown={e => handleTrackMouseDown("bottom")} style={inlineStyle.track}>
                         <button style={inlineStyle.button}></button>
                     </div>)
                 }
@@ -205,4 +227,5 @@ export default function ScrollArea({ as, width = '100%', height = "100%", trackS
     )
 }
 
+export { ScrollArea }
 
