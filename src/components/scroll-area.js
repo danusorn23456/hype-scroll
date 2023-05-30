@@ -8,8 +8,7 @@ function ScrollArea({ as, width = '100%', activeOpacity = 1, inactiveOpacity = 0
     if (!styleSheet) {
         styleSheet = document.createElement('style');
         styleSheet.id = prefix;
-        styleSheet.innerHTML = `
-        .${prefix}_remove-scroll-bar::-webkit-scrollbar {
+        styleSheet.innerHTML = `.${prefix}_remove-scroll-bar::-webkit-scrollbar {
             display: none;
         }
         .${prefix}_remove-scroll-bar{
