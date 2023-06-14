@@ -79,6 +79,7 @@ function ScrollArea({ as, width = '100%', activeOpacity = 1, inactiveOpacity = 0
             transition: 'transform 50ms',
             willChange: 'transform',
             background: thumbColor,
+            backgroundSize: 'cover',
             outline: 'none',
             borderStyle: 'none',
             borderRadius: trackSize,
